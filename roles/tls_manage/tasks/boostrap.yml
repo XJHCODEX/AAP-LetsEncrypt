@@ -36,23 +36,21 @@
     path: "{{ server_fullchain_path }}"
   register: le_cert_stat
 
-- name: Request Let's Encrypt certificate
+- name: Request Let's Encrypt IP certificate
   ansible.builtin.command: >
-    certbot --nginx
+    certbot certonly --standalone
     -d {{ tls_common_name }}
     --non-interactive
     --agree-tos
     -m {{ tls_email }}
+    --key-type ecdsa
+    --preferred-challenges http
     {% if tls_use_staging | bool %} --staging {% endif %}
     {% if tls_force_renewal | bool %} --force-renewal {% endif %}
-    --redirect
   register: certbot_issue_result
   changed_when: >
     'Congratulations' in certbot_issue_result.stdout
     or 'Successfully received certificate' in certbot_issue_result.stdout
-  when:
-    - tls_install_nginx | bool
-    - not le_cert_stat.stat.exists
 
 - name: Show certbot issuance output
   ansible.builtin.debug:
