@@ -36,6 +36,14 @@
     path: "{{ server_fullchain_path }}"
   register: le_cert_stat
 
+- name: Stop nginx before standalone certbot run
+  ansible.builtin.service:
+    name: "{{ tls_service_name }}"
+    state: stopped
+  when:
+    - tls_install_nginx | bool
+    - not le_cert_stat.stat.exists
+
 - name: Request Let's Encrypt IP certificate
   ansible.builtin.command: >
     certbot certonly --standalone
@@ -51,6 +59,13 @@
   changed_when: >
     'Congratulations' in certbot_issue_result.stdout
     or 'Successfully received certificate' in certbot_issue_result.stdout
+
+- name: Start nginx after standalone certbot run
+  ansible.builtin.service:
+    name: "{{ tls_service_name }}"
+    state: started
+    enabled: true
+  when: tls_install_nginx | bool
 
 - name: Show certbot issuance output
   ansible.builtin.debug:
