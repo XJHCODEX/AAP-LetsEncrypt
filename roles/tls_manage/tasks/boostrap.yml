@@ -1,0 +1,95 @@
+---
+- name: Drop temporary bootstrap page
+  ansible.builtin.copy:
+    dest: "{{ tls_webroot }}/index.html"
+    content: |
+      Let's Encrypt bootstrap page for {{ tls_common_name }}
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure nginx HTTP listener for ACME bootstrap
+  ansible.builtin.template:
+    src: nginx-http-bootstrap.conf.j2
+    dest: /etc/nginx/conf.d/ip-bootstrap.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: tls_install_nginx | bool
+  notify: restart tls service
+
+- name: Ensure nginx is enabled and started
+  ansible.builtin.service:
+    name: "{{ tls_service_name }}"
+    state: started
+    enabled: true
+  when: tls_install_nginx | bool
+
+- name: Test nginx configuration before certificate request
+  ansible.builtin.command: nginx -t
+  register: nginx_bootstrap_test
+  changed_when: false
+  when: tls_install_nginx | bool
+
+- name: Check if Let's Encrypt certificate already exists
+  ansible.builtin.stat:
+    path: "{{ server_fullchain_path }}"
+  register: le_cert_stat
+
+- name: Request Let's Encrypt certificate
+  ansible.builtin.command: >
+    certbot --nginx
+    -d {{ tls_common_name }}
+    --non-interactive
+    --agree-tos
+    -m {{ tls_email }}
+    {% if tls_use_staging | bool %} --staging {% endif %}
+    {% if tls_force_renewal | bool %} --force-renewal {% endif %}
+    --redirect
+  register: certbot_issue_result
+  changed_when: >
+    'Congratulations' in certbot_issue_result.stdout
+    or 'Successfully received certificate' in certbot_issue_result.stdout
+  when:
+    - tls_install_nginx | bool
+    - not le_cert_stat.stat.exists
+
+- name: Show certbot issuance output
+  ansible.builtin.debug:
+    var: certbot_issue_result.stdout_lines
+  when: certbot_issue_result is defined
+
+- name: Configure nginx TLS listener
+  ansible.builtin.template:
+    src: nginx-ip.conf.j2
+    dest: /etc/nginx/conf.d/ip-ssl.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: tls_install_nginx | bool
+  notify: restart tls service
+
+- name: Remove temporary bootstrap nginx config
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/ip-bootstrap.conf
+    state: absent
+  when: tls_install_nginx | bool
+  notify: restart tls service
+
+- name: Ensure certificate files exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ server_cert_path }}"
+    - "{{ server_chain_path }}"
+    - "{{ server_fullchain_path }}"
+    - "{{ server_key_path }}"
+  register: le_cert_files
+
+- name: Show created certificate location
+  ansible.builtin.debug:
+    msg:
+      - "Server cert: {{ server_cert_path }}"
+      - "Server key: {{ server_key_path }}"
+      - "Chain: {{ server_chain_path }}"
+      - "Full chain: {{ server_fullchain_path }}"
