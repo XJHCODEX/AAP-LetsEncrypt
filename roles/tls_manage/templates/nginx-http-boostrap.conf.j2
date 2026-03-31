@@ -1,0 +1,18 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ tls_common_name }};
+
+    root {{ tls_webroot }};
+    index index.html;
+
+    location /.well-known/acme-challenge/ {
+        root {{ tls_webroot }};
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
