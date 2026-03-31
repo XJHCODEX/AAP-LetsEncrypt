@@ -1,0 +1,5 @@
+---
+- name: restart tls service
+  ansible.builtin.service:
+    name: "{{ tls_service_name }}"
+    state: restarted
