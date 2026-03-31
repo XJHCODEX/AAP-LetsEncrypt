@@ -2,7 +2,7 @@
 tls_install_nginx: true
 tls_service_name: "nginx"
 
-tls_common_name: "letsencrypt31.bluehatlab.net"
+tls_common_name: "52.118.162.195"
 tls_email: "your-email@example.com"
 tls_webroot: "/var/www/letsencrypt"
 
