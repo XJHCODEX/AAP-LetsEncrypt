@@ -1,0 +1,55 @@
+---
+- name: Bootstrap Let's Encrypt TLS certificate workflow
+  hosts: tls_hosts
+  become: true
+  gather_facts: true
+  collections:
+    - community.crypto
+
+  pre_tasks:
+    - name: Install required system packages with nginx
+      ansible.builtin.dnf:
+        name:
+          - python3
+          - python3-pip
+          - openssl
+          - ca-certificates
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+        state: present
+      when: tls_install_nginx | default(true) | bool
+
+    - name: Install required system packages without nginx
+      ansible.builtin.dnf:
+        name:
+          - python3
+          - python3-pip
+          - openssl
+          - ca-certificates
+          - certbot
+        state: present
+      when: not (tls_install_nginx | default(true) | bool)
+
+    - name: Ensure Python cryptography package is installed
+      ansible.builtin.pip:
+        name: cryptography
+        state: present
+
+    - name: Create TLS directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ tls_cert_dir | default('/etc/letsencrypt') }}", mode: "0755" }
+        - { path: "{{ tls_webroot | default('/var/www/letsencrypt') }}", mode: "0755" }
+        - { path: "{{ (tls_webroot | default('/var/www/letsencrypt')) + '/.well-known/acme-challenge' }}", mode: "0755" }
+
+  tasks:
+    - name: Run bootstrap tasks from tls_manage role
+      ansible.builtin.import_role:
+        name: tls_manage
+        tasks_from: bootstrap
