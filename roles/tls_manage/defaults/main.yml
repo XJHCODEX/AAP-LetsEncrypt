@@ -1,0 +1,17 @@
+---
+tls_install_nginx: true
+tls_service_name: "nginx"
+
+tls_common_name: "letsencrypt31.bluehatlab.net"
+tls_email: "your-email@example.com"
+tls_webroot: "/var/www/letsencrypt"
+
+tls_use_staging: true
+tls_force_renewal: false
+
+tls_cert_dir: "/etc/letsencrypt"
+
+server_cert_path: "/etc/letsencrypt/live/{{ tls_common_name }}/cert.pem"
+server_chain_path: "/etc/letsencrypt/live/{{ tls_common_name }}/chain.pem"
+server_fullchain_path: "/etc/letsencrypt/live/{{ tls_common_name }}/fullchain.pem"
+server_key_path: "/etc/letsencrypt/live/{{ tls_common_name }}/privkey.pem"
